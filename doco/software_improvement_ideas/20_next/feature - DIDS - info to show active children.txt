@@ -1,0 +1,5 @@
+Complex:
+e.g. have a mini process list (50 max)
+Show in 'info' output.
+Add to list when fork, including status e.g. 'fullcompare', 'compare', 'sleep'. 
+Remove from list when wait()
