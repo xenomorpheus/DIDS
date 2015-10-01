@@ -285,8 +285,9 @@ void command_process(int new_sockfd, char *cmd_buffer,
 
 	// change to using a filehandle
 	FILE *new_sockfh = fdopen(new_sockfd, "w+");
-	if (new_sockfh != NULL) {
+	if (new_sockfh == NULL) {
 		error(stderr, "Failed to create file handle from file descriptor");
+		return;
 	}
 
 	// Lazy loading of PPMs into RAM from SQL.
@@ -594,7 +595,7 @@ int server_loop(FILE *orig_sockfh, char *sql_info, int portno, int compare_size,
 	// Load all PPMs from SQL into RAM BEFORE we start to listen on the socket.
 	int rc = load(orig_sockfh, psql, &picinfo_list);
 	if (rc) {
-		error(orig_sockfh, "LOAD failed with code %d=", rc);
+		error(orig_sockfh, "LOAD failed with code %d", rc);
 		ppm_sql_disconnect(orig_sockfh, psql);
 		return 1;
 	}
