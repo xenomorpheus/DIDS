@@ -1,0 +1,3 @@
+* Load all images from SQL in one SQL statement.
+
+Need to use SQL cursors ?

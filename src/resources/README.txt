@@ -1,0 +1,1 @@
+These image files are used by unit tests.

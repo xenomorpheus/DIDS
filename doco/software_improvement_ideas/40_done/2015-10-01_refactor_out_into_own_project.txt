@@ -1,0 +1,5 @@
+* This directory should be extracted out into a stand alone project.
+  It should be fully authoritative for the ppm table, not external system..
+  Perhaps use sqllite
+  
+  

@@ -1,0 +1,33 @@
+2015-10-01
+  Version 2.0
+  Major refactor
+  Placed on GitHub under GNU GENERAL PUBLIC LICENSE Version 2, June 1991
+  IPv6 support added.
+  Added support for up to 100 clients.
+  Many other improvements.
+  Extracted DIDS from parent application.
+2014-11-17
+  dids_client now takes host and port via command line options rather than
+     command line arguments.  Defaults to localhost, port 10000.
+2013-10-12
+  Major upgrade.
+    The picture ID has been been placed by external reference string.
+    This allows for future expansion in replacing picture id with picture fingerprint. 
+    Integration tests of duplicate picture detections system now use a test SQL schema.
+    Code optimisations and cleanup.
+    Improvements to the build and install process.
+    Integration tests work.
+2013-09-25
+  Added code to work out how many CPUs we have.
+2012-12-13
+  Successfully moved to using ImageMagick for conversion and resize of images
+    rather than using a stream to the convert command.
+2012-12-12
+  removed maxcolour from ppm as it isn't required.
+  removed CreatePPM and ScaleDown as no longer required.
+  removed a lot of other unused code.
+2012-12-11
+  started work on using ImageMagick wand for image conversion and resize
+    rather than using a stream to the convert command.
+  simplified code by removing unused routines.
+

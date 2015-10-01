@@ -1,0 +1,7 @@
+Migrate existing unit tests from parent application.
+
+Use the tester.
+Possibly add to Makefile.
+load images.
+compare to other images.
+
