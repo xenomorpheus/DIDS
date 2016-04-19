@@ -56,7 +56,7 @@ Terminology:
          The ID in the external application could be used, but DIDS will need to be told
            if the ID changes.
   full compare  : All image (thumbnails) within DIDS are compared to each other.
-  quick compare : An exteral image is compared to all image (thumbnails) in DIDS.
+  quick compare : An external image is compared to all image (thumbnails) in DIDS.
 
 
 =====================================================================================
@@ -114,7 +114,7 @@ DIDS will return the external_ref strings of potentual duplicate images.
 Full Compare:
 All the image (thumbnails) within DIDS are compared with each other.
 DIDS will fork a client for each full compare request, and will become
-multi threaded to make use of multiple CPUs should they be present.
+multi-threaded to make use of multiple CPUs should they be present.
 DIDS will return the external_ref strings of potentual duplicate images.
 
 Some notes about the FULL Comparison process.

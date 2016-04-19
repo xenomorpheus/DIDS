@@ -59,6 +59,7 @@
 typedef struct Client_Info {
 	int fd;  // File descriptor or if empty then CLIENT_SLOT_FREE
 	char command_buffer[BUFFER_SIZE];
+	int cmd_offset;
 	pid_t pid;  // Process ID or 0 for no process.
 // TODO struct timeval connection_timeout;
 } Client_Info;
@@ -114,6 +115,8 @@ int load(FILE *sock_fh, PGconn *psql, PicInfo **picinfo_list_ref) {
  *
  * Add a resized image to both sql and into memory.
  *
+ * external_ref will be duplicated, so may be free'ed afterwards.
+ *
  * 1) ensure the images are all in memory.
  * 2) resize and store the new image in the database
  * 3) add the resized image to the list in memory
@@ -142,6 +145,13 @@ int add(FILE *sock_fh, PGconn *psql, PicInfo **ppm_list_ref, char *filename,
 				"add - ppm_store for external_ref '%s' and filename %s, code %d",
 				external_ref, filename, rc);
 		ppm_info_free(ppm_miniature);
+		return 1;
+	}
+
+	// Duplicate external_ref as PicInfoBuild will keep a pointer to it.
+	external_ref = strdup(external_ref);
+	if (!external_ref) {
+		error(sock_fh, "add - strdup external_ref failed");
 		return 1;
 	}
 
@@ -233,7 +243,7 @@ void error(FILE *sock_fh, const char *format, ...) {
  *  return non-zero on error.
  */
 int info(FILE *sock_fh, PicInfo *list) {
-	fprintf(sock_fh, "property: version: 2.00\n");
+	fprintf(sock_fh, "property: version: 2.10\n");
 	unsigned long long image_loaded_count = 0L;
 	PicInfo *current_pic = list;
 	while (current_pic) {
@@ -292,12 +302,12 @@ void unload(PicInfo **list) {
  * psql             : A postgreSQL connection.
  * server_loop_ptr  : Pointer to integer used to switch off the server's mail loop.
  * compare_size     : The height (and width) of the PPMs.
- * minerr           : For images to be considered similar the difference must be below this amount.
+ * maxerr           : For images to be considered similar the difference must be below this amount.
  *
  */
 void command_process(int new_sockfd, char *cmd_buffer,
 		PicInfo **picinfo_list_ptr, PGconn *psql, int *server_loop_ptr,
-		int compare_size, unsigned int minerr) {
+		int compare_size, unsigned int maxerr) {
 
 	// change to using a filehandle
 	FILE *new_sockfh = fdopen(new_sockfd, "w+");
@@ -366,9 +376,9 @@ void command_process(int new_sockfd, char *cmd_buffer,
 				fprintf(new_sockfh, "QUICKCOMPARE\n");
 				fprintf(new_sockfh, "DEBUG: '%s'\n", filename);
 				fflush(new_sockfh);
-				// NOTE increase in minerr
+				// NOTE increase in maxerr
 				int rc = quickcompare(new_sockfh, *picinfo_list_ptr,
-						minerr * 10, filename, compare_size);
+						maxerr * 10, filename, compare_size);
 				if (rc) {
 					fprintf(new_sockfh, "QUICKCOMPARE FAILED, code %d\n", rc);
 				} else {
@@ -394,7 +404,7 @@ void command_process(int new_sockfd, char *cmd_buffer,
 			fprintf(new_sockfh, "FULLCOMPARE\n");
 			fflush(new_sockfh);
 			// double the CPU count
-			int rc = fullcompare(new_sockfh, *picinfo_list_ptr, minerr,
+			int rc = fullcompare(new_sockfh, *picinfo_list_ptr, maxerr,
 					global_cpu_count * 2);
 			if (rc) {
 				fprintf(new_sockfh, "FULLCOMPARE FAILED, code %d\n", rc);
@@ -589,12 +599,12 @@ int create_port_listen_v6(FILE *orig_sockfh, int portno) {
  * sql_info         : A string with SQL connection information.
  * portno           : Which network port to listen on.
  * compare_size     : The height (and width) of the PPMs.
- * minerr           : For images to be considered similar the difference must be below this amount.
+ * maxerr           : For images to be considered similar the difference must be below this amount.
  *
  *  Return: non-zero on error.
  */
 int server_loop(FILE *orig_sockfh, char *sql_info, int portno, int compare_size,
-		unsigned int minerr) {
+		unsigned int maxerr) {
 
 	// Connect to SQL database
 	PGconn *psql = ppm_sql_connect(orig_sockfh, sql_info);
@@ -700,11 +710,13 @@ int server_loop(FILE *orig_sockfh, char *sql_info, int portno, int compare_size,
 		while ((late_pid = waitpid(-1, NULL, WNOHANG)) > 0) {
 			global_child_process_count--;
 			// Find the late client by pid then record it as dead.
-			for (index = first_real_client_index; index < CLIENT_MAX; index++)
-				if (global_client_detail[index].pid == late_pid) {
-					global_client_detail[index].fd = CLIENT_SLOT_FREE;
+			for (index = first_real_client_index; index < CLIENT_MAX; index++){
+				if ((global_client_detail[index].fd != CLIENT_SLOT_FREE)
+						 && (global_client_detail[index].pid == late_pid)) {
 					global_client_detail[index].pid = 0;
+					break;
 				}
+			}
 		}
 
 		// Housekeeping
@@ -754,6 +766,7 @@ int server_loop(FILE *orig_sockfh, char *sql_info, int portno, int compare_size,
 					global_client_detail[free_slot].pid = 0;
 					bzero(global_client_detail[free_slot].command_buffer,
 					BUFFER_SIZE);
+					global_client_detail[free_slot].cmd_offset = 0;
 					global_active_connection_count++;
 					// TODO anything else?
 					// TODO set timeout.
@@ -762,9 +775,10 @@ int server_loop(FILE *orig_sockfh, char *sql_info, int portno, int compare_size,
 				// We have data on existing connection that needs to be read.
 				int client_fd = global_client_detail[index].fd;
 				char *cmd_buffer = global_client_detail[index].command_buffer;
+				int cmd_offset = global_client_detail[index].cmd_offset;
 				// Read data.
-				int read_result = read(client_fd, cmd_buffer, BUFFER_SIZE);
-				if (read_result < 0) {
+				int read_bytes = read(client_fd, &cmd_buffer[cmd_offset], BUFFER_SIZE - cmd_offset);
+				if (read_bytes < 0) {
 					// kill the connection as client has most likely gone away.
 					error(orig_sockfh,
 							"Failed to read from client, closing the FD.");
@@ -772,13 +786,14 @@ int server_loop(FILE *orig_sockfh, char *sql_info, int portno, int compare_size,
 					global_client_detail[index].fd = CLIENT_SLOT_FREE;
 					continue;
 				}
+				global_client_detail[index].cmd_offset += read_bytes;
 				// TODO update timeout.
 				// Check if a command has been completed.
 				int command_end = strcspn(cmd_buffer, "\r\n");
 				if (command_end > 0) {
 					cmd_buffer[command_end] = 0; // Strip trailing LF, CR, CRLF, LFCR, ...
 					command_process(client_fd, cmd_buffer, &picinfo_list, psql,
-							&server_loop, compare_size, minerr);
+							&server_loop, compare_size, maxerr);
 					close(client_fd);
 					global_client_detail[index].fd = CLIENT_SLOT_FREE;
 					global_active_connection_count--;
@@ -823,7 +838,7 @@ void usage() {
 
 int main(int argc, char *argv[]) {
 	int compare_size = COMPARE_SIZE;
-	unsigned int minerr = COMPARE_THRESHOLD;
+	unsigned int maxerr = COMPARE_THRESHOLD;
 	if (argc < 3) {
 		fprintf(stdout, "\nERROR: Not enough arguments\n");
 		usage();
@@ -843,7 +858,7 @@ int main(int argc, char *argv[]) {
 		global_cpu_count = 2;
 	}
 
-	server_loop(stdout, sql_info, portno, compare_size, minerr);
+	server_loop(stdout, sql_info, portno, compare_size, maxerr);
 
 	/* The final thing that main() should do */
 	pthread_exit(NULL);

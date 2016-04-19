@@ -61,7 +61,7 @@ void usage(FILE *sock_fh, char *appname) {
 
 int main(int argc, char *argv[]) {
 	int compare_size = COMPARE_SIZE;
-	unsigned int minerr = COMPARE_TRESHOLD;
+	unsigned int maxerr = COMPARE_TRESHOLD;
 	FILE *sock_fh = stdout;
 	if (argc < 3) {
 		fprintf(stderr, "ERROR: Not enough arguments. Quitting\n");
@@ -102,7 +102,7 @@ int main(int argc, char *argv[]) {
 	// Look for the same ppm image as we have just added to the list.
 	// Of course it should find the image in the list.
 	PicInfo *pic = PicInfoBuild("ref 2", ppm,NULL);
-	PicInfo *closest = CompareToList(sock_fh, pic, list, minerr);
+	PicInfo *closest = CompareToList(sock_fh, pic, list, maxerr);
 	if (closest) {
 		fprintf(sock_fh, "SUCCESS: CompareToList - We found a similar image.\n");
 	} else {

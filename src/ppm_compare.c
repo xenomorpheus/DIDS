@@ -43,7 +43,7 @@ int debug = 0;
 struct fullcompare_thread_data {
 	int thread_id;
 	FILE *sock_fh;
-	unsigned int minerr;
+	unsigned int maxerr;
 };
 
 pthread_mutex_t fullcompare_mutex;
@@ -142,13 +142,13 @@ void *fullcompare_worker(void *threadarg) {
 			(struct fullcompare_thread_data *) threadarg;
 	int thread_id = my_data->thread_id;
 	FILE *sock_fh = my_data->sock_fh;
-	unsigned int minerr = my_data->minerr;
+	unsigned int maxerr = my_data->maxerr;
 
 	fprintf(sock_fh, "DEBUG: fullcompare_worker: Start %d\n", thread_id);
 	PicInfo *current_pic;
 	while ((current_pic = fullcompare_get_work_item(sock_fh))
 			&& current_pic->next) {
-		CompareToList(sock_fh, current_pic, current_pic->next, minerr);
+		CompareToList(sock_fh, current_pic, current_pic->next, maxerr);
 	}
 	fprintf(sock_fh, "DEBUG: fullcompare_worker: Stop %d\n", thread_id);
 	pthread_exit(NULL);
@@ -159,13 +159,13 @@ void *fullcompare_worker(void *threadarg) {
  *
  * sock_fh     - error channel
  * full_list   - The list of thumbnails to look for possible duplicates within.
- * minerr      - If the difference between two thumbnails is greater, the files are considered different.
+ * maxerr      - If the difference between two thumbnails is lower than maxerr, the files are considered similar.
  *
  * Return 0        on success.
  *        non-zero on error.
  */
 
-int fullcompare(FILE *sock_fh, PicInfo *full_list, unsigned int minerr,
+int fullcompare(FILE *sock_fh, PicInfo *full_list, unsigned int maxerr,
 		int thread_count) {
 
 	if (full_list == NULL) {
@@ -184,7 +184,7 @@ int fullcompare(FILE *sock_fh, PicInfo *full_list, unsigned int minerr,
 		fprintf(sock_fh, "DEBUG: In main: creating thread %d\n", thread_id);
 		thread_data_array[thread_id].thread_id = thread_id;
 		thread_data_array[thread_id].sock_fh = sock_fh;
-		thread_data_array[thread_id].minerr = minerr;
+		thread_data_array[thread_id].maxerr = maxerr;
 
 		int rc = pthread_create(&threads[thread_id], NULL, fullcompare_worker,
 				(void *) &thread_data_array[thread_id]);
@@ -206,11 +206,11 @@ int fullcompare(FILE *sock_fh, PicInfo *full_list, unsigned int minerr,
  *   comparing an image to the list
  *
  *   return
- *       closest ppm that is below minerr
+ *       closest ppm that is below maxerr
  *       otherwise NULL.
  */
 PicInfo *CompareToList(FILE *sock_fh, PicInfo *pic, PicInfo *picinfo_list,
-		unsigned int minerr) {
+		unsigned int maxerr) {
 
 	// Some quick sanity checks
 	if (!picinfo_list) {
@@ -221,8 +221,8 @@ PicInfo *CompareToList(FILE *sock_fh, PicInfo *pic, PicInfo *picinfo_list,
 		fprintf(sock_fh, "WARN: CompareToList pic is NULL\n");
 		return NULL;
 	}
-	if (minerr == 0) {
-		fprintf(sock_fh, "WARN: CompareToList minerr is zero\n");
+	if (maxerr == 0) {
+		fprintf(sock_fh, "WARN: CompareToList maxerr is zero\n");
 		return NULL;
 	}
 
@@ -257,8 +257,8 @@ PicInfo *CompareToList(FILE *sock_fh, PicInfo *pic, PicInfo *picinfo_list,
 		err_this_compare = PPM_compare(sock_fh, pic->picinf,
 				picinfo_list->picinf, err_best_so_far);
 
-		// If this compare is closer than minerr AND better than any previous comparisons.
-		if ((err_this_compare < minerr)
+		// If this compare is closer than maxerr AND better than any previous comparisons.
+		if ((err_this_compare < maxerr)
 				&& (err_this_compare < err_best_so_far)) {
 			err_best_so_far = err_this_compare;
 			best_match = picinfo_list;
@@ -286,7 +286,7 @@ PicInfo *CompareToList(FILE *sock_fh, PicInfo *pic, PicInfo *picinfo_list,
  * Return 0 on success
  */
 
-int quickcompare(FILE *sock_fh, PicInfo *picinfo_list, unsigned int minerr,
+int quickcompare(FILE *sock_fh, PicInfo *picinfo_list, unsigned int maxerr,
 	char *filename, int compare_size) {
 
 	int result = access (filename, R_OK); // for readable
@@ -309,7 +309,7 @@ int quickcompare(FILE *sock_fh, PicInfo *picinfo_list, unsigned int minerr,
 	// Compare to existing PPMs in list
 	fprintf(sock_fh, "DEBUG: quickcompare calling CompareToList with filename '%s'\n", filename);
 	PicInfo *pic = PicInfoBuild("NONE", ppm_miniature, NULL);
-	CompareToList(sock_fh, pic, picinfo_list, minerr);
+	CompareToList(sock_fh, pic, picinfo_list, maxerr);
 
 	ppm_info_free(ppm_miniature);
 	fprintf(sock_fh, "DEBUG: quickcompare done\n");

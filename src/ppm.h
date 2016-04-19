@@ -87,18 +87,18 @@ int ppm_load_all_from_sql(FILE *sock_fh, PGconn *psql, PicInfo **list_ref);
 void fullcompare_set_work_list(PicInfo *list);
 PicInfo *fullcompare_get_work_item(FILE *sock_fh);
 void *fullcompare_worker(void *threadarg);
-int fullcompare(FILE *sock_fh, PicInfo *full_list, unsigned int minerr, int thread_count);
-int quickcompare(FILE *sock_fh, PicInfo *list, unsigned int minerr, char *filename, int compare_size);
+int fullcompare(FILE *sock_fh, PicInfo *full_list, unsigned int maxerr, int thread_count);
+int quickcompare(FILE *sock_fh, PicInfo *list, unsigned int maxerr, char *filename, int compare_size);
 
 // dids_server.c
-PicInfo *CompareToList(FILE *sock_fh, PicInfo *pic, PicInfo *list, unsigned int minerr);
+PicInfo *CompareToList(FILE *sock_fh, PicInfo *pic, PicInfo *list, unsigned int maxerr);
 int add(FILE *sock_fh, PGconn *psql, PicInfo **list_ref, char *filename,
 		char *external_ref, int compare_size);
 int del(FILE *sock_fh, PGconn *psql, PicInfo **Global_list_ref, char *external_ref);
 void error(FILE *sock_fh, const char *fmt, ...);
 int info(FILE *sock_fh, PicInfo *list);
 int server_loop(FILE *orig_sock_fh, char *sql_info, int portno,
-		int compare_size, unsigned int minerr);
+		int compare_size, unsigned int maxerr);
 
 // ppm.c
 PPM_Info *ppm_miniature_from_filename(FILE *sock_fh, char *filename, int compare_size);

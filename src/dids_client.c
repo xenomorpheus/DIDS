@@ -66,8 +66,10 @@ void read_and_print_reply(int sockfd){
 		if (n < 0){
 			error("ERROR reading from socket");
 		}
-		if (n > 0)
+		if (n > 0){
+			buffer[n]='\0';
 			printf("%s", buffer);
+		}
 	}
 }
 

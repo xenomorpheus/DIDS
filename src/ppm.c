@@ -85,10 +85,10 @@ unsigned char PPM_GetBWPixel(PPM_Info *ppm, int x, int y, unsigned char *c) {
 	unsigned short v;
 
 	if ((x < 0) || (x >= ppm->width)) {
-		return;
+		return 0;
 	}
 	if ((y < 0) || (y >= ppm->height)) {
-		return;
+		return 0;
 	}
 
 	v = (ppm->data[ppm->modval * y + 3 * x]

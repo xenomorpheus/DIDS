@@ -1,3 +1,7 @@
+2016-04-20
+  Version 2.1
+  Bugfix - when calling 'ADD' to an image, free() was being called twice on the external reference.
+  Bugfix - after dids_client called read(), the string wasn't properly terminated before calling pring.
 2015-10-01
   Version 2.0
   Major refactor
