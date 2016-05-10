@@ -1,0 +1,11 @@
+bug - DIDS - active connection count
+
+Don't include listening sockets in the active connection count.
+
+INFO
+property: version: 2.00
+property: image_loaded_count: 151610
+property: cpu_count: 4
+property: child_process_count: 0
+property: active_connection_count: 2
+INFO SUCCESS

@@ -1,0 +1,1 @@
+It looks like the server dies when using the remove command with an external ref of ''

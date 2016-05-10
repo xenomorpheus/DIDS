@@ -180,20 +180,16 @@ void ThrowWandException(MagickWand *wand, FILE *sock_fh) {
 PPM_Info *ppm_miniature_from_filename(FILE *sock_fh, char *filename,
 		int new_size) {
 	PPM_Info *ppm;
-
-	MagickBooleanType status;
-	MagickWand *magick_wand;
+	MagickWand *magick_wand = NewMagickWand();
 
 	/*
 	 Read an image.
 	 */
-	// TODO move
-	MagickWandGenesis();
 
-	magick_wand = NewMagickWand();
-	status = MagickReadImage(magick_wand, filename);
+	MagickBooleanType status = MagickReadImage(magick_wand, filename);
 	if (status == MagickFalse) {
 		ReportWandException(magick_wand, sock_fh);
+		magick_wand = DestroyMagickWand(magick_wand);
 		return NULL;
 	}
 
@@ -205,6 +201,7 @@ PPM_Info *ppm_miniature_from_filename(FILE *sock_fh, char *filename,
 		fprintf(sock_fh,
 				"ERROR: ppm_miniature_from_filename Failed on filename %s because size (%dx%d) below compare size\n",
 				filename, width, height);
+		magick_wand = DestroyMagickWand(magick_wand);
 		return NULL;
 	}
 
@@ -228,6 +225,7 @@ PPM_Info *ppm_miniature_from_filename(FILE *sock_fh, char *filename,
 		fprintf(sock_fh,
 				"ERROR: ppm_miniature_from_filename Failed to allocate memory for image from filename %s\n",
 				filename);
+		magick_wand = DestroyMagickWand(magick_wand);
 		return NULL;
 	}
 
@@ -241,6 +239,7 @@ PPM_Info *ppm_miniature_from_filename(FILE *sock_fh, char *filename,
 		fprintf(sock_fh,
 				"ERROR: ppm_miniature_from_filename Failed. Error from MagickExportImagePixels follows:\n");
 		ReportWandException(magick_wand, sock_fh);
+		magick_wand = DestroyMagickWand(magick_wand);
 		free(ppm);
 		return NULL;
 	}

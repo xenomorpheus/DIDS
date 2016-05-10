@@ -1,0 +1,10 @@
+Check that strdup() is being called when external refs added.
+
+
+ERROR: Failed to parse 'Match: 0186ec5213f94db743596f8d4528e1f6|41435, O5, 5858'
+ at /var/apache-vhost/devot33.com/scripts/../lib/Image/DIDS.pm line 101, <GEN0> line 30.
+        Image::DIDS::ParsePcompFh('Image::DIDS', 'fh', 'IO::Socket::INET=GLOB(0x39000e8)', 'error_ref', undef) called at /var/apache-vhost/devot33.com/scripts/../lib/Image/DIDS.pm line 500
+        Image::DIDS::client_cmd_fullcompare('err_ref', 'SCALAR(0x35cd5a0)') called at /var/apache-vhost/devot33.com/scripts/../lib/Util/Duplicate.pm line 178
+        Util::Duplicate::Refresh_Fuzzy('Util::Duplicate', 'reporting_callback', 'CODE(0x3843c90)') called at scripts/admin line 186
+
+

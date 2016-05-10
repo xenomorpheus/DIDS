@@ -1,0 +1,23 @@
+cc    -c -o dids_server.o dids_server.c
+dids_server.c: In function ‘command_process’:
+dids_server.c:388:5: warning: implicit declaration of function ‘pthread_exit’ [-Wimplicit-function-declaration]
+     pthread_exit(NULL);
+     ^
+dids_server.c: In function ‘server_loop’:
+dids_server.c:710:22: warning: implicit declaration of function ‘waitpid’ [-Wimplicit-function-declaration]
+   while ((late_pid = waitpid(-1, NULL, WNOHANG)) > 0) {
+                      ^
+dids_server.c: In function ‘main’:
+dids_server.c:861:2: warning: implicit declaration of function ‘MagickWandGenesis’ [-Wimplicit-function-declaration]
+  MagickWandGenesis();
+  ^
+dids_server.c:865:2: warning: implicit declaration of function ‘MagickWandTerminus’ [-Wimplicit-function-declaration]
+  MagickWandTerminus();
+  ^
+cc    -c -o ppm_dao.o ppm_dao.c
+cc -c -o ppm.o ppm.c `pkg-config --cflags --libs MagickWand` 
+cc    -c -o ppm_sql.o ppm_sql.c
+ppm_sql.c: In function ‘pq_query’:
+ppm_sql.c:74:2: warning: implicit declaration of function ‘vasprintf’ [-Wimplicit-function-declaration]
+  vasprintf(&ptrQuery, format, argv);
+  ^

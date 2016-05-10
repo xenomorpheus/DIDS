@@ -536,7 +536,7 @@ int create_port_listen_v4(FILE *orig_sockfh, int portno) {
 	}
 	bzero((char *) &serv_addr_v4, sizeof(serv_addr_v4));
 	serv_addr_v4.sin_family = AF_INET;
-	serv_addr_v4.sin_addr.s_addr = INADDR_ANY;
+	serv_addr_v4.sin_addr.s_addr = inet_addr("127.0.0.1");
 	serv_addr_v4.sin_port = htons(portno);
 	errno = 0;
 	// should this be (struct sockaddr_in *)
@@ -567,7 +567,7 @@ int create_port_listen_v6(FILE *orig_sockfh, int portno) {
 	}
 	bzero((char *) &serv_addr_v6, sizeof(serv_addr_v6));
 	serv_addr_v6.sin6_family = AF_INET6;
-	serv_addr_v6.sin6_addr = in6addr_any;
+	serv_addr_v6.sin6_addr = in6addr_loopback; // localhost
 	serv_addr_v6.sin6_port = htons(portno);
 	if (bind(listening_socketfd_v6, (struct sockaddr *) &serv_addr_v6,
 			sizeof(serv_addr_v6)) == -1) {
@@ -858,7 +858,11 @@ int main(int argc, char *argv[]) {
 		global_cpu_count = 2;
 	}
 
+	MagickWandGenesis();
+
 	server_loop(stdout, sql_info, portno, compare_size, maxerr);
+
+	MagickWandTerminus();
 
 	/* The final thing that main() should do */
 	pthread_exit(NULL);

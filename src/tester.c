@@ -80,6 +80,8 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 
+	MagickWandGenesis();
+
 	PPM_Info *ppm = ppm_miniature_from_filename(sock_fh, filename,
 			compare_size);
 	if (!ppm) {
@@ -119,6 +121,7 @@ int main(int argc, char *argv[]) {
 	fprintf(sock_fh, "SUCCESS: ppm_store - Storing PPM in SQL.\n");
 
 	// Finished testing
+	MagickWandTerminus();
 	fprintf(sock_fh, "INFO: disconnecting SQL\n");
 	ppm_sql_disconnect(sock_fh, psql);
 	fprintf(sock_fh, "INFO: End of Test\n");
