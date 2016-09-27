@@ -38,8 +38,6 @@
 
 // fullcompare
 
-int debug = 0;
-
 struct fullcompare_thread_data {
 	int thread_id;
 	FILE *sock_fh;
@@ -119,7 +117,7 @@ fullcompare_get_work_item(FILE *sock_fh) {
 					- (fullcompare_compare_remaining / fullcompare_compare_total
 							* 100);
 			fprintf(sock_fh,
-					"DEBUG: fullcompare_get_work_item: %6.2Lf%% complete, sets remaining=%llu/%llu\n",
+					"INFO: fullcompare_get_work_item: %6.2Lf%% complete, sets remaining=%llu/%llu\n",
 					percent_complete, fullcompare_set_count_remaining,
 					fullcompare_set_count);
 		}
@@ -235,10 +233,6 @@ PicInfo *CompareToList(FILE *sock_fh, PicInfo *pic, PicInfo *picinfo_list,
 	PicInfo *best_match = NULL;
 
 	while (picinfo_list) {
-		if (debug) {
-			fprintf(sock_fh, "DEBUG: CompareToList %s compare to %s\n",
-					external_ref, picinfo_list->external_ref);
-		}
 
 		/*
 		 *   As we want DIDS to report the next closest match, DIDS needs to
@@ -246,10 +240,7 @@ PicInfo *CompareToList(FILE *sock_fh, PicInfo *pic, PicInfo *picinfo_list,
 		 *   to compare two images. Waiting until later and weeding out the
 		 *   results won't work as the next closest image won't be reported.
 		 */
-		if (similar_but_different_search(pic->similar_but_different,
-				picinfo_list->external_ref)) {
-			fprintf(sock_fh, "DEBUG: CompareToList %s SKIP %s\n", external_ref,
-					picinfo_list->external_ref);
+		if (similar_but_different_search(pic->similar_but_different, picinfo_list->external_ref)) {
 			picinfo_list = picinfo_list->next;
 			continue;
 		}
