@@ -4,7 +4,7 @@
  * This module uses multi-threaded code.
  * Please see the README file for further details.
  *
- *    Copyright (C) 2000-2015  Michael John Bruins, BSc.
+ *    Copyright (C) 2000-2016  Michael John Bruins, BSc.
  *
  *    This program is free software; you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -308,6 +308,7 @@ int quickcompare(FILE *sock_fh, PicInfo *picinfo_list, unsigned int maxerr,
 
 	// Compare to existing PPMs in list
 	fprintf(sock_fh, "DEBUG: quickcompare calling CompareToList with filename '%s'\n", filename);
+	fflush(sock_fh);
 	PicInfo *pic = PicInfoBuild("NONE", ppm_miniature, NULL);
 	CompareToList(sock_fh, pic, picinfo_list, maxerr);
 

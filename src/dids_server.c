@@ -48,9 +48,12 @@
 #include <unistd.h>
 #include <sys/types.h> 
 #include <sys/socket.h>
+#include <sys/wait.h>
 #include <netinet/in.h>
 #include <time.h>
 #include <errno.h>
+#include <pthread.h>
+#include <wand/MagickWand.h>
 
 // Custom
 #include "ppm.h"
@@ -191,11 +194,15 @@ int del(FILE *sock_fh, PGconn *psql, PicInfo **ppm_list_ref, char *external_ref)
 	// del from the list in RAM
 	rc = PicInfoDeleteFromList(ppm_list_ref, external_ref);
 	// code 2 : Deleted from SQL, but not in RAM to delete.
-	if (rc && (rc != 2)) {
-		error(sock_fh,
-				"del - PicInfoDeleteFromList for external_ref '%s', code %d",
-				external_ref, rc);
-		return 2;
+	if (rc){
+		if (rc == 2) {
+			fprintf(sock_fh, "DEBUG: del could not find external_ref '%s'\n", external_ref);
+		}
+		else{
+			error(sock_fh,
+				"del - PicInfoDeleteFromList for external_ref '%s', code %d", external_ref, rc);
+			return 2;
+		}
 	}
 	return 0;
 }
@@ -291,7 +298,7 @@ void unload(PicInfo **list) {
  *   debug_sleep     : fork() then sleep for 60 seconds. Used to test fork()
  *   debug_show_tree : Show the memory structure of the PPM tree. Used to check structure.
  *
- *  Will fork() for longer running operations such as fullcompare and compare.
+ *  Will fork() for longer running operations such as fullcompare and quickcompare.
  *
  *  Will load all PPMs into RAM before listening for commands.
  *
@@ -316,14 +323,14 @@ void command_process(int new_sockfd, char *cmd_buffer,
 		return;
 	}
 
-	// Lazy loading of PPMs into RAM from SQL.
+	// If the command is load, or a command that requires thumbnails already loaded.
+	// Lazy loading of PPMs from SQL into RAM.
 	// Most commands require that the thumbnails be loaded into RAM.
-	// If thumbnails not in RAM, then do that now.
-	if ((!*picinfo_list_ptr)
+	if ( (strcmp(cmd_buffer, "load") == 0) || (
+			(!*picinfo_list_ptr)
 			&& ((strcmp(cmd_buffer, "fullcompare") == 0)
-					|| (strcmp(cmd_buffer, "load") == 0)
 					|| (strstr(cmd_buffer, "add ") == cmd_buffer)
-					|| (strstr(cmd_buffer, "quickcompare ") == cmd_buffer))) {
+					|| (strstr(cmd_buffer, "quickcompare ") == cmd_buffer)))) {
 
 		// If command was to load, then report starting to load.
 		if (strcmp(cmd_buffer, "load") == 0) {
@@ -331,17 +338,26 @@ void command_process(int new_sockfd, char *cmd_buffer,
 			fflush(new_sockfh); // So any human watching sees we are working.
 		}
 
-		// Load all PPMs from SQL into RAM
-		int rc = load(new_sockfh, psql, picinfo_list_ptr);
-		if (rc) {
-			error(new_sockfh, "LOAD failed with code %d\n", rc);
-			*server_loop_ptr = 0; // abort loop
-		} else {
-			// If command was 'load' then report complete.
-			if (strcmp(cmd_buffer, "load") == 0) {
-				fprintf(new_sockfh, "LOAD SUCCESS\n");
+		// If already loaded, just report success
+		if (*picinfo_list_ptr){
+			fprintf(new_sockfh, "DEBUG: Already loaded\n");
+			fprintf(new_sockfh, "LOAD SUCCESS\n");
+		}
+		// Actually do the loading.
+		else{
+			// Load all PPMs from SQL into RAM
+			int rc = load(new_sockfh, psql, picinfo_list_ptr);
+			if (rc) {
+				error(new_sockfh, "LOAD failed with code %d\n", rc);
+				*server_loop_ptr = 0; // abort loop
+			} else {
+				// If command was 'load' then report complete.
+				if (strcmp(cmd_buffer, "load") == 0) {
+					fprintf(new_sockfh, "LOAD SUCCESS\n");
+				}
 			}
 		}
+		fflush(new_sockfh); // So any human watching sees we are working.
 	}
 
 	// load
@@ -355,6 +371,7 @@ void command_process(int new_sockfd, char *cmd_buffer,
 		fprintf(new_sockfh, "QUIT\n");
 		*server_loop_ptr = 0;
 		fprintf(new_sockfh, "QUIT SUCCESS\n");
+		fflush(new_sockfh);
 	}
 
 	// quickcompare filename  ( detatches )
@@ -384,6 +401,7 @@ void command_process(int new_sockfd, char *cmd_buffer,
 				} else {
 					fprintf(new_sockfh, "QUICKCOMPARE SUCCESS\n");
 				}
+				fflush(new_sockfh);
 				free(filename);
 				pthread_exit(NULL);
 				exit(0);
@@ -589,7 +607,7 @@ int create_port_listen_v6(FILE *orig_sockfh, int portno) {
  *  Respond to commands requests and perform the commands:
  *  For a list of commands see command_process().
  *
- *  Will fork() for longer running operations such as fullcompare and compare.
+ *  Will fork() for longer running operations such as fullcompare and quickcompare.
  *
  *  Will load all PPMs into RAM before listening for commands.
  *

@@ -46,6 +46,7 @@
 #include <netinet/in.h>
 #include <time.h>
 #include <errno.h>
+#include <wand/MagickWand.h>
 
 // Custom
 #include "ppm.h"

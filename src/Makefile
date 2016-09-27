@@ -19,7 +19,7 @@ export C_INCLUDE_PATH=/usr/include/postgresql
 all: dids_client dids_server tester
 
 ppm.o: ppm.c ppm.h
-	cc -c -o ppm.o ppm.c `pkg-config --cflags --libs MagickWand` 
+	cc -c -o ppm.o ppm.c `pkg-config --cflags --libs MagickWand`
 
 ppm_compare.o: ppm_compare.c ppm.h
 
@@ -32,6 +32,7 @@ ppm_list.o: ppm_list.c ppm.h
 ppm_dao.o: ppm_dao.c ppm.h
 
 dids_server.o: dids_server.c ppm.h
+	cc -c -o dids_server.o dids_server.c `pkg-config --cflags --libs MagickWand`
 
 similar_but_different_dao.o: similar_but_different_dao.c ppm.h
 
@@ -42,10 +43,10 @@ dids_server: dids_server.o ppm_dao.o ppm.o ppm_sql.o ppm_info.o ppm_compare.o \
 	    -lpq `pkg-config --libs MagickWand` -lpthread
 	# chcon -Rt httpd_sys_script_exec_t dids_server
 
-tester: tester.c ppm.o ppm_info.o ppm_list.o ppm_compare.o ppm_sql.o ppm_dao.o ppm.h
+tester: tester.c similar_but_different_dao.o ppm.o ppm_info.o ppm_list.o ppm_compare.o ppm_sql.o ppm_dao.o ppm.h
 	gcc -L/usr/lib/ -o tester tester.c ppm.o ppm_info.o ppm_list.o \
 	similar_but_different_dao.o ppm_compare.o ppm_sql.o ppm_dao.o \
-	-lpq `pkg-config --libs MagickWand` -lpthread
+	-lpq `pkg-config --cflags --libs MagickWand` -lpthread
 
 clean:
 	rm -f tester dids_server dids_client *.o
