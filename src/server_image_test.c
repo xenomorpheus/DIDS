@@ -5,9 +5,9 @@
  * 
  * Usage:
  *
- *  ./tester <SQL_INFO> <IMAGE_FILENAME>
+ *  ./server_image_test <SQL_INFO> <IMAGE_FILENAME>
  *
- *  ./tester "dbname = 'myTestDatabase' user = 'myTestSqlUser' connect_timeout = '10'" myTestImage.jpg
+ *  ./server_image_test "dbname = 'myTestDatabase' user = 'myTestSqlUser' connect_timeout = '10'" myTestImage.jpg
  *
  * 1) to add the miniature image into the SQL.
  *

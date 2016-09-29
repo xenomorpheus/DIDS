@@ -6,3 +6,5 @@
 /*.o
 .cproject
 .project
+/list_test
+/server_image_test

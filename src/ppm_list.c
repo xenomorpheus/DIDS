@@ -75,35 +75,34 @@ void PicInfoDelete(PicInfo *hlp) {
 // TODO Can we do something smart with the return value so we are always
 // adding the the end of the list ?
 // E.g. return the end of the list so that we can insert at the end.
-void PicInfoAddToList(PicInfo **list_ref, PicInfo *picinfo) {
+void PicInfoAddToList(PicInfo **list_ref, PicInfo *picinfo_new) {
 
 	// Insert so that external_ref strings are in ascending order.
 	// Is the list empty?
 	if (*list_ref == NULL) {
-		*list_ref = picinfo;
-		picinfo->next = NULL;
+		*list_ref = picinfo_new;
+		picinfo_new->next = NULL;
 		return;
 	}
 
 	// Find the point in the chain where we need to insert this link.
-	char *external_ref = picinfo->external_ref;
+	char *external_ref_new = picinfo_new->external_ref;
 	PicInfo *ptr = *list_ref;
 	PicInfo *last_ptr = NULL;
-	while (ptr && strcmp(ptr->external_ref, external_ref) < 0) {
+	while (ptr && strcmp(ptr->external_ref, external_ref_new) < 0) {
 		last_ptr = ptr;
 		ptr = ptr->next;
 	}
-
-	// Not at end of chain. Insert link.
-	if (ptr) {
-		picinfo->next = ptr->next;
-		ptr->next = picinfo;
-	}
-	// At end of chain, so join link at end.
-	else {
-		last_ptr->next = picinfo;
-		picinfo->next = NULL;
-	}
+        // insert at start
+        if (last_ptr == NULL){
+		picinfo_new->next = *list_ref;
+		*list_ref = picinfo_new;
+        }
+	// insert at last_ptr
+        else {
+		last_ptr->next = picinfo_new;
+		picinfo_new->next = ptr;
+        }
 }
 
 /*
