@@ -29,6 +29,7 @@
 #define COMPARE_SIZE  16
 #define COMPARE_THRESHOLD 35000 // Lower means images must be more similar to match.
 #define CPU_INFO_FILENAME  "/proc/cpuinfo"
+#define LOCK_FILE_TEMPLATE "/var/run/dids_lockfile_port_%d"
 #define BUFFER_SIZE 2048
 #define COMMAND_LISTEN_TIMEOUT 60 // How long two wait for incoming command.
 #define CLIENT_SLOT_FREE -1
@@ -46,6 +47,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/file.h>
 #include <sys/types.h> 
 #include <sys/socket.h>
 #include <sys/wait.h>
@@ -241,7 +243,6 @@ void error(FILE *sock_fh, const char *format, ...) {
 	va_end(args);
 
 	fprintf(sock_fh, "Error: %s\n", buffer);
-	fprintf(stderr, "Error: %s\n", buffer);
 }
 
 /*
@@ -422,8 +423,7 @@ void command_process(int new_sockfd, char *cmd_buffer,
 			fprintf(new_sockfh, "FULLCOMPARE\n");
 			fflush(new_sockfh);
 			// double the CPU count
-			int rc = fullcompare(new_sockfh, *picinfo_list_ptr, maxerr,
-					global_cpu_count * 2);
+			int rc = fullcompare(new_sockfh, *picinfo_list_ptr, maxerr, global_cpu_count);
 			if (rc) {
 				fprintf(new_sockfh, "FULLCOMPARE FAILED, code %d\n", rc);
 			} else {
@@ -544,30 +544,35 @@ void command_process(int new_sockfd, char *cmd_buffer,
 }
 
 // Setup a IPV4 network socket to listen on
-int create_port_listen_v4(FILE *orig_sockfh, int portno) {
+int create_port_listen_v4(FILE *log_fh, int portno) {
 	struct sockaddr_in serv_addr_v4;
 	int listening_socketfd_v4 = socket(AF_INET, SOCK_STREAM, 0);
 	if (listening_socketfd_v4 == -1) {
-		error(orig_sockfh, "opening socket v4, errno=%d, error=%s", errno,
-				strerror(errno));
+		error(log_fh, "opening socket v4 failed, errno=%d, error=%s", errno, strerror(errno));
 		return 0;
 	}
+
+	// Make socket reusable
+	int enable = 1;
+	if (setsockopt(listening_socketfd_v4, SOL_SOCKET, SO_REUSEPORT | SO_REUSEADDR, &enable, sizeof(int)) < 0){
+	    error(log_fh, "setsockopt v4 (SO_REUSEPORT | SO_REUSEADDR) failed, errno=%d, error=%s", errno, strerror(errno));
+		close(listening_socketfd_v4);
+		return 0;
+	}
+
 	bzero((char *) &serv_addr_v4, sizeof(serv_addr_v4));
 	serv_addr_v4.sin_family = AF_INET;
 	serv_addr_v4.sin_addr.s_addr = inet_addr("127.0.0.1");
 	serv_addr_v4.sin_port = htons(portno);
 	errno = 0;
-	// should this be (struct sockaddr_in *)
-	if (bind(listening_socketfd_v4, (struct sockaddr *) &serv_addr_v4,
-			sizeof(serv_addr_v4)) == -1) {
-		error(orig_sockfh, "bind() v4, errno=%d, error=%s", errno,
-				strerror(errno));
+
+	if (bind(listening_socketfd_v4, (struct sockaddr *) &serv_addr_v4, sizeof(serv_addr_v4)) == -1) {
+		error(log_fh, "bind() v4 failed, errno=%d, error=%s", errno, strerror(errno));
 		close(listening_socketfd_v4);
 		return 0;
 	}
 	if (listen(listening_socketfd_v4, 10) == -1) {
-		error(orig_sockfh, "listen() v4, errno=%d, error=%s", errno,
-				strerror(errno));
+		error(log_fh, "listen() v4 failed, errno=%d, error=%s", errno, strerror(errno));
 		close(listening_socketfd_v4);
 		return 0;
 	}
@@ -575,32 +580,70 @@ int create_port_listen_v4(FILE *orig_sockfh, int portno) {
 }
 
 // Setup a IPV6 network socket to listen on
-int create_port_listen_v6(FILE *orig_sockfh, int portno) {
+int create_port_listen_v6(FILE *log_fh, int portno) {
 	struct sockaddr_in6 serv_addr_v6;
-	int listening_socketfd_v6 = socket(AF_INET, SOCK_STREAM, 0);
+	int listening_socketfd_v6 = socket(AF_INET6, SOCK_STREAM, 0);
 	if (listening_socketfd_v6 == -1) {
-		error(orig_sockfh, "opening socket() v6, errno=%d, error=%s", errno,
-				strerror(errno));
+		error(log_fh, "opening socket() v6 failed, errno=%d, error=%s", errno,	strerror(errno));
 		return 0;
 	}
+
+	// Make socket reusable
+	int enable = 1;
+	if (setsockopt(listening_socketfd_v6, SOL_SOCKET, SO_REUSEPORT | SO_REUSEADDR, &enable, sizeof(int)) < 0){
+	    error(log_fh, "setsockopt v6 (SO_REUSEPORT | SO_REUSEADDR) failed, errno=%d, error=%s", errno, strerror(errno));
+		close(listening_socketfd_v6);
+		return 0;
+	}
+
 	bzero((char *) &serv_addr_v6, sizeof(serv_addr_v6));
 	serv_addr_v6.sin6_family = AF_INET6;
-	serv_addr_v6.sin6_addr = in6addr_loopback; // localhost
+	serv_addr_v6.sin6_addr = in6addr_loopback;
 	serv_addr_v6.sin6_port = htons(portno);
-	if (bind(listening_socketfd_v6, (struct sockaddr *) &serv_addr_v6,
-			sizeof(serv_addr_v6)) == -1) {
-		error(orig_sockfh, "bind() v6 errno=%d, error=%s", errno,
-				strerror(errno));
+	errno = 0;
+
+	if (bind(listening_socketfd_v6, (struct sockaddr *) &serv_addr_v6, sizeof(serv_addr_v6)) == -1) {
+		error(log_fh, "bind() v6 errno=%d, error=%s", errno, strerror(errno));
 		close(listening_socketfd_v6);
 		return 0;
 	}
 	if (listen(listening_socketfd_v6, 10) == -1) {
-		error(orig_sockfh, "listen() v6, errno=%d, error=%s", errno,
-				strerror(errno));
+		error(log_fh, "listen() v6 failed, errno=%d, error=%s", errno, strerror(errno));
 		close(listening_socketfd_v6);
 		return 0;
 	}
 	return listening_socketfd_v6;
+}
+
+/*
+ * Check for an instance already running, and wanting this port.
+ * returns true if already running, or error.
+ */
+int is_already_running(FILE *log_fh, int port){
+    char *lockfile;
+    asprintf(&lockfile, LOCK_FILE_TEMPLATE, port);
+    if (!lockfile){
+		error( log_fh, "failed to determine lockfile filename");
+		return 1;
+    }
+	int pid_file = open(lockfile, O_CREAT | O_RDWR, 0666);
+    if (pid_file < 0){
+		error( log_fh, "failed to open lockfile filename '%s'", lockfile);
+		return 1;
+    }
+	errno=0;
+	int rc = flock(pid_file, LOCK_EX | LOCK_NB);
+	if(rc) {
+		if(EWOULDBLOCK == errno){
+			error( log_fh, "Another instance running. Found lockfile filename '%s'", lockfile);
+			return 1; // another instance is running
+	    }
+	    // Some other error
+		error(log_fh, "Failed to flock filename '%s', errno=%d, error=%s", lockfile, errno, strerror(errno));
+	    return 1;
+	}
+	// this is the first instance
+	return 0;
 }
 
 /*
@@ -621,13 +664,39 @@ int create_port_listen_v6(FILE *orig_sockfh, int portno) {
  *
  *  Return: non-zero on error.
  */
-int server_loop(FILE *orig_sockfh, char *sql_info, int portno, int compare_size,
+int server_loop(FILE *log_fh, char *sql_info, int portno, int compare_size,
 		unsigned int maxerr) {
 
+	if(is_already_running(log_fh, portno)){
+		error(log_fh, "Quitting.");
+		return 3;
+	}
+
+	// Setup IPv4 and/or IPv6 ports to listen on.
+	// Ports below first_real_client_index are for listening for new connections.
+	int first_real_client_index = 0;
+	int listening_socket = create_port_listen_v4(log_fh, portno);
+	if (listening_socket > 0) {
+		global_client_detail[first_real_client_index].fd = listening_socket;
+		first_real_client_index++;
+	}
+
+	// Setup a IPV6 network socket to listen on
+	listening_socket = create_port_listen_v6(log_fh, portno);
+	if (listening_socket > 0) {
+		global_client_detail[first_real_client_index].fd = listening_socket;
+		first_real_client_index++;
+	}
+	if (first_real_client_index == 0) {
+		error(log_fh, "Failed to start listening on network. Quitting.");
+		return 2;
+	}
+	// Done setting up IPv4 and/or IPv6 listening ports.
+
 	// Connect to SQL database
-	PGconn *psql = ppm_sql_connect(orig_sockfh, sql_info);
+	PGconn *psql = ppm_sql_connect(log_fh, sql_info);
 	if (!psql) {
-		error(orig_sockfh,
+		error(log_fh,
 				"libpq error: PQconnectdb returned NULL.\nSQL details: %s",
 				sql_info);
 		return 1;
@@ -636,38 +705,13 @@ int server_loop(FILE *orig_sockfh, char *sql_info, int portno, int compare_size,
 	// All PPMs in RAM. Loaded from SQL.
 	PicInfo *picinfo_list = NULL;
 
-	// Load all PPMs from SQL into RAM BEFORE we start to listen on the socket.
-	int rc = load(orig_sockfh, psql, &picinfo_list);
+	// Load all PPMs from SQL into RAM.
+	int rc = load(log_fh, psql, &picinfo_list);
 	if (rc) {
-		error(orig_sockfh, "LOAD failed with code %d", rc);
-		ppm_sql_disconnect(orig_sockfh, psql);
+		error(log_fh, "LOAD failed with code %d", rc);
+		ppm_sql_disconnect(log_fh, psql);
 		return 1;
 	}
-
-	// Setup IPv4 and/or IPv6 ports to listen on.
-	// Ports below first_real_client_index are for listening for new connections.
-	int first_real_client_index = 0;
-	int listening_socket = create_port_listen_v4(orig_sockfh, portno);
-	if (listening_socket > 0) {
-		global_client_detail[first_real_client_index].fd = listening_socket;
-		first_real_client_index++;
-	}
-
-	// Setup a IPV6 network socket to listen on
-	listening_socket = create_port_listen_v6(orig_sockfh, portno);
-	if (listening_socket > 0) {
-		global_client_detail[first_real_client_index].fd = listening_socket;
-		first_real_client_index++;
-	}
-	if (first_real_client_index == 0) {
-		if (picinfo_list) {
-			unload(&picinfo_list);
-		}
-		ppm_sql_disconnect(orig_sockfh, psql);
-		error(orig_sockfh, "No network found. Listening to radio instead.");
-		return 2;
-	}
-	// Done setting up IPv4 and/or IPv6 listening ports.
 
 	// Setup an array of incoming file descriptors.
 	int index;
@@ -717,7 +761,7 @@ int server_loop(FILE *orig_sockfh, char *sql_info, int portno, int compare_size,
 		int fd_count_with_input = TEMP_FAILURE_RETRY(
 				select(fd_max + 1, &my_fd_set, NULL, NULL, &timeout));
 		if (fd_count_with_input < 0) {
-			error(orig_sockfh, "select() failed. errno=%d, error=%s", errno,
+			error(log_fh, "select() failed. errno=%d, error=%s", errno,
 					strerror(errno));
 			continue;
 		}
@@ -760,7 +804,7 @@ int server_loop(FILE *orig_sockfh, char *sql_info, int portno, int compare_size,
 			if (index < first_real_client_index) {
 				int new_sockfd = accept(fd, NULL, NULL);
 				if (new_sockfd < 0) {
-					error(orig_sockfh, "accept()");
+					error(log_fh, "accept()");
 					continue;
 				}
 				int free_slot = first_real_client_index; // lower connections are for new IPv4 and IPv6 connections.
@@ -769,12 +813,12 @@ int server_loop(FILE *orig_sockfh, char *sql_info, int portno, int compare_size,
 						break;
 				// Are we are out of free slots?
 				if (free_slot >= CLIENT_MAX) {
-					error(orig_sockfh,
+					error(log_fh,
 							"Internal Error: we somehow got more connections than we can handle.");
 					char *mesg = "BUSY: Please come back later";
 					int write_rc = write(new_sockfd, mesg, strlen(mesg));
 					if (write_rc == -1) {
-						error(orig_sockfh, "Failed to tell client to go away");
+						error(log_fh, "Failed to tell client to go away");
 					}
 					close(new_sockfd);
 				}
@@ -798,7 +842,7 @@ int server_loop(FILE *orig_sockfh, char *sql_info, int portno, int compare_size,
 				int read_bytes = read(client_fd, &cmd_buffer[cmd_offset], BUFFER_SIZE - cmd_offset);
 				if (read_bytes < 0) {
 					// kill the connection as client has most likely gone away.
-					error(orig_sockfh,
+					error(log_fh,
 							"Failed to read from client, closing the FD.");
 					close(client_fd);
 					global_client_detail[index].fd = CLIENT_SLOT_FREE;
@@ -829,7 +873,7 @@ int server_loop(FILE *orig_sockfh, char *sql_info, int portno, int compare_size,
 			close(global_client_detail[index].fd);
 
 	// End of server loop
-	ppm_sql_disconnect(orig_sockfh, psql);
+	ppm_sql_disconnect(log_fh, psql);
 	return 0;
 }
 
