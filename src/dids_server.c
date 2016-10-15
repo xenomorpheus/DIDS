@@ -29,7 +29,7 @@
 #define COMPARE_SIZE  16
 #define COMPARE_THRESHOLD 35000 // Lower means images must be more similar to match.
 #define CPU_INFO_FILENAME  "/proc/cpuinfo"
-#define LOCK_FILE_TEMPLATE "/var/run/dids_lockfile_port_%d"
+#define LOCK_FILE_TEMPLATE "/var/run/dids/lockfile_port_%d"
 #define BUFFER_SIZE 2048
 #define COMMAND_LISTEN_TIMEOUT 60 // How long two wait for incoming command.
 #define CLIENT_SLOT_FREE -1
