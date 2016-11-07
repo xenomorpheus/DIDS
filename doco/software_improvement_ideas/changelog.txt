@@ -1,3 +1,14 @@
+2016-11-03
+  Version 2.2
+  Created an init.d script to automatically do setup and launch at boot.
+2016-09-29
+  Bugfix - Adding entries to list was not producing an ordered list.
+          Deleting entries was failing as list not ordered.
+2016-06-07
+  Bugfix - Command 'quickcompare' would not flush output before quitting.
+          This caused calling process to hang.
+2016-05-13
+  Bugfix - Command 'load' would not respond if thumbnails already loaded
 2016-04-20
   Version 2.1
   Bugfix - when calling 'ADD' to an image, free() was being called twice on the external reference.

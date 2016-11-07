@@ -251,7 +251,7 @@ void error(FILE *sock_fh, const char *format, ...) {
  *  return non-zero on error.
  */
 int info(FILE *sock_fh, PicInfo *list) {
-	fprintf(sock_fh, "property: version: 2.10\n");
+	fprintf(sock_fh, "property: version: 2.20\n");
 	unsigned long long image_loaded_count = 0L;
 	PicInfo *current_pic = list;
 	while (current_pic) {

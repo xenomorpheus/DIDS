@@ -1,0 +1,4 @@
+When closing down the main server socket, it takes a minute or two before the network
+socket may be reused.
+
+How can the socket be closed in such a way it can be reopened quicker?

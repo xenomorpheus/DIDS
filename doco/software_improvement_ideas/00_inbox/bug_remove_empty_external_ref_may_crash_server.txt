@@ -1,2 +1,0 @@
-bug - DIDS - remove '' may crash server
-

@@ -1,0 +1,29 @@
+
+Delete isn't working due to linked list not being sorted.
+
+Here we can see (**) the entry is not sorted.
+
+   ref: '03d1567a1a603d210da98577bfe12b13|145104'
+   ref: '03d26d59e0e0bd3f03bbee174f8052e3|24524'
+   ref: '03d294bc6f46d8cf7025b55a0630813d|264584'
+   ref: '03d36c889ff6365ee99a4bad46131422|77571'
+** ref: '03d32a7d4d4d834e1a2cea86f5780453|452370'
+   ref: '03d39abe82f2c70e9add8f9afc317b1e|28845'
+   ref: '03d47811c60c99e151e5c50d978379cf|1451780'
+   ref: '03d4baedb579f68a7920af8e3989ce68|191189'
+
+
+Perhaps the insert is broken.
+
+
+==========================================================
+
+del external_ref 'fee9c63084e09bc122dade3ad2a2086b|46406'
+
+Removal of external ref doesn't seem to work.
+Ideas.
+
+Is internals of delete working?
+Is the client forking a new child, then doing the del in the child ?
+
+

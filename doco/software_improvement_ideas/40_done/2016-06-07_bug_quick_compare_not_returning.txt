@@ -1,0 +1,3 @@
+quick compare not returning.
+
+Add debug statements.
