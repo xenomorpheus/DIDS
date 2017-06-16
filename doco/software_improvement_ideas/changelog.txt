@@ -1,6 +1,8 @@
 2016-11-03
   Version 2.2
   Created an init.d script to automatically do setup and launch at boot.
+2016-10-07
+  Bugfix - Network sockect shared allows quick restart.
 2016-09-29
   Bugfix - Adding entries to list was not producing an ordered list.
           Deleting entries was failing as list not ordered.
