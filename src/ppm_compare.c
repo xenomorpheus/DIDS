@@ -4,7 +4,7 @@
  * This module uses multi-threaded code.
  * Please see the README file for further details.
  *
- *    Copyright (C) 2000-2016  Michael John Bruins, BSc.
+ *    Copyright (C) 2000-2019  Michael John Bruins, BSc.
  *
  *    This program is free software; you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
  *
  */
 
-#define FULLCOMPARE_REPORT_SET_INTERVAL 300
+#define FULLCOMPARE_REPORT_COMPARE_INTERVAL 5000
 #define FULLCOMPARE_THREAD_COUNT     8
 
 // Standard
@@ -57,6 +57,9 @@ unsigned long long fullcompare_set_count_remaining;
 // How many image comparisons we are expecting to do.
 long double fullcompare_compare_total;
 
+// How many image comparison we have repored
+long double fullcompare_compare_remaining_reported;
+
 /*
  *  fullcompare_set_work_list
  *  Set the working list to do a full compare on.
@@ -81,6 +84,8 @@ void fullcompare_set_work_list(PicInfo *list) {
 	// Hint: consider an Nx(N-1) grid and the triangle formed by comparing N images, with the remaining N-1 images, only once.
 	fullcompare_compare_total = fullcompare_set_count
 			* (fullcompare_set_count - 1) / 2;
+	// We ensure we report the 100% by increasing the fullcompare_compare_remaining_reported over the INTERVAL.
+	fullcompare_compare_remaining_reported = fullcompare_compare_total + FULLCOMPARE_REPORT_COMPARE_INTERVAL + 1;
 	pthread_mutex_unlock(&fullcompare_mutex);
 }
 
@@ -106,24 +111,29 @@ fullcompare_get_work_item(FILE *sock_fh) {
 		ret = fullcompare_worklist;
 		fullcompare_worklist = fullcompare_worklist->next;
 
-		// Report progress
-		if (((fullcompare_set_count_remaining % FULLCOMPARE_REPORT_SET_INTERVAL)
-				== 0) && (fullcompare_set_count_remaining > 1)) {
-			// Hint consider an NxN grid and the triangle formed by comparing any two images exactly once.
-			long double fullcompare_compare_remaining =
-					fullcompare_set_count_remaining
-							* (fullcompare_set_count_remaining - 1) / 2;
+
+		// Hint consider an NxN grid and the triangle formed by comparing any two images exactly once.
+		long double fullcompare_compare_remaining =
+			fullcompare_set_count_remaining * (fullcompare_set_count_remaining - 1) / 2;
+
+	        if ( (fullcompare_compare_remaining_reported - fullcompare_set_count_remaining) > FULLCOMPARE_REPORT_COMPARE_INTERVAL ){
+			fullcompare_compare_remaining_reported = fullcompare_set_count_remaining;
+
 			long double percent_complete = 100.0
-					- (fullcompare_compare_remaining / fullcompare_compare_total
-							* 100);
+				- (fullcompare_compare_remaining / fullcompare_compare_total * 100);
 			fprintf(sock_fh,
-					"INFO: fullcompare_get_work_item: %6.2Lf%% complete, sets remaining=%llu/%llu\n",
-					percent_complete, fullcompare_set_count_remaining,
-					fullcompare_set_count);
+				"INFO: fullcompare_get_work_item: %6.2Lf%% complete, sets remaining=%llu/%llu\n",
+				percent_complete, fullcompare_set_count_remaining,
+				fullcompare_set_count);
+			fflush(sock_fh);
 		}
 
 		// Reduce the set count
 		--fullcompare_set_count_remaining;
+	}
+	else {
+		fprintf(sock_fh, "INFO: fullcompare_get_work_item: No remaining work items\n");
+		fflush(sock_fh);
 	}
 	pthread_mutex_unlock(&fullcompare_mutex);
 	return ret;
@@ -143,12 +153,14 @@ void *fullcompare_worker(void *threadarg) {
 	unsigned int maxerr = my_data->maxerr;
 
 	fprintf(sock_fh, "DEBUG: fullcompare_worker: Start %d\n", thread_id);
+	fflush(sock_fh);
 	PicInfo *current_pic;
 	while ((current_pic = fullcompare_get_work_item(sock_fh))
 			&& current_pic->next) {
 		CompareToList(sock_fh, current_pic, current_pic->next, maxerr);
 	}
 	fprintf(sock_fh, "DEBUG: fullcompare_worker: Stop %d\n", thread_id);
+	fflush(sock_fh);
 	pthread_exit(NULL);
 }
 
@@ -168,6 +180,7 @@ int fullcompare(FILE *sock_fh, PicInfo *full_list, unsigned int maxerr,
 
 	if (full_list == NULL) {
 		fprintf(sock_fh, "ERROR: fullcompare passed empty list\n");
+		fflush(sock_fh);
 		return 2;
 	}
 
@@ -180,6 +193,7 @@ int fullcompare(FILE *sock_fh, PicInfo *full_list, unsigned int maxerr,
 	int thread_id;
 	for (thread_id = 0; thread_id < thread_count; thread_id++) {
 		fprintf(sock_fh, "DEBUG: In main: creating thread %d\n", thread_id);
+		fflush(sock_fh);
 		thread_data_array[thread_id].thread_id = thread_id;
 		thread_data_array[thread_id].sock_fh = sock_fh;
 		thread_data_array[thread_id].maxerr = maxerr;
@@ -189,12 +203,14 @@ int fullcompare(FILE *sock_fh, PicInfo *full_list, unsigned int maxerr,
 		if (rc) {
 			fprintf(sock_fh, "ERROR: return code from pthread_create() is %d\n",
 					rc);
+			fflush(sock_fh);
 			return 1;
 		}
 	}
 	// wait for threads.
 	for (thread_id = 0; thread_id < thread_count; thread_id++) {
 		fprintf(sock_fh, "DEBUG: In main: thread %d finished\n", thread_id);
+		fflush(sock_fh);
 		pthread_join(threads[thread_id], NULL);
 	}
 	return 0;
@@ -213,14 +229,17 @@ PicInfo *CompareToList(FILE *sock_fh, PicInfo *pic, PicInfo *picinfo_list,
 	// Some quick sanity checks
 	if (!picinfo_list) {
 		fprintf(sock_fh, "WARN: CompareToList picinfo_list is NULL\n");
+		fflush(sock_fh);
 		return NULL;
 	}
 	if (!pic) {
 		fprintf(sock_fh, "WARN: CompareToList pic is NULL\n");
+		fflush(sock_fh);
 		return NULL;
 	}
 	if (maxerr == 0) {
 		fprintf(sock_fh, "WARN: CompareToList maxerr is zero\n");
+		fflush(sock_fh);
 		return NULL;
 	}
 
@@ -265,6 +284,7 @@ PicInfo *CompareToList(FILE *sock_fh, PicInfo *pic, PicInfo *picinfo_list,
 	if (best_match) {
 		fprintf(sock_fh, "Match: %s, %s, %u\n", external_ref,
 				best_match->external_ref, err_best_so_far);
+		fflush(sock_fh);
 	}
 	return best_match;
 }
@@ -283,6 +303,7 @@ int quickcompare(FILE *sock_fh, PicInfo *picinfo_list, unsigned int maxerr,
 	int result = access (filename, R_OK); // for readable
 	if ( result != 0 ){
 		fprintf(sock_fh, "ERROR: quickcompare - no read access for filename '%s'\n", filename);
+		fflush(sock_fh);
 		return 1;
 	}
 
@@ -294,6 +315,7 @@ int quickcompare(FILE *sock_fh, PicInfo *picinfo_list, unsigned int maxerr,
 		fprintf(sock_fh,
 				"ERROR: quickcompare - ppm_miniature_from_filename filename %s failed\n",
 				filename);
+		fflush(sock_fh);
 		return 1;
 	}
 
@@ -305,5 +327,6 @@ int quickcompare(FILE *sock_fh, PicInfo *picinfo_list, unsigned int maxerr,
 
 	ppm_info_free(ppm_miniature);
 	fprintf(sock_fh, "DEBUG: quickcompare done\n");
+	fflush(sock_fh);
 	return 0;
 }

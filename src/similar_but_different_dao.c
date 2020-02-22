@@ -3,7 +3,7 @@
  * This module provides a mechanism to stop false positives from being reported again.
  * Please see the README file for further details.
  *
- *    Copyright (C) 2000-2015  Michael John Bruins, BSc.
+ *    Copyright (C) 2000-2019  Michael John Bruins, BSc.
  *
  *    This program is free software; you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -28,10 +28,14 @@
 #include <stdarg.h>
 #include "ppm.h"
 
+/* forward declarations */
+int _picinfo_add_similar_but_different(FILE *sock_fh, PicInfo *picinfo, char *external_ref);
+void _picinfo_remove_all_similar_but_different(FILE *sock_fh, PicInfo *picinfo);
+
 /*
- * similar_but_different_add_to_picinfo_list
+ * picinfo_list_refresh_similar_but_different
  *
- * Add similar_but_different information to the entries in the picinfo_list.
+ * Refresh similar_but_different information in the picinfo_list entries.
  *
  * IMORTANT REQUIREMENT:
  *   external_ref < external_ref_other
@@ -43,7 +47,7 @@
  * Return 0 on success
  *        non-zero on failure.
  */
-int similar_but_different_add_to_picinfo_list(FILE *sock_fh, PGconn *psql,
+int picinfo_list_refresh_similar_but_different(FILE *sock_fh, PGconn *psql,
 		PicInfo *picinfo_list_ref) {
 
 	if (!picinfo_list_ref) {
@@ -78,10 +82,21 @@ int similar_but_different_add_to_picinfo_list(FILE *sock_fh, PGconn *psql,
 		return 0;
 	}
 
+	/* Remove old similar_but_different entries */
+	PicInfo *picinfo_list_ref_current = picinfo_list_ref;
+	while (picinfo_list_ref_current) {
+		if (picinfo_list_ref_current->similar_but_different){
+			_picinfo_remove_all_similar_but_different(sock_fh, picinfo_list_ref_current);
+		}
+		picinfo_list_ref_current = picinfo_list_ref_current->next;
+	}
+
+
 	/* Use PQfnumber to avoid assumptions about field order in result */
 	int external_ref_fnum = PQfnumber(pq_result, "external_ref");
 	int external_ref_other_fnum = PQfnumber(pq_result, "external_ref_other");
 	int rc; // scoping - don't keep reallocating RAM
+	picinfo_list_ref_current = picinfo_list_ref;
 	for (tuple = 0; tuple < tuples; tuple++) {
 		// don't reuse Postgres private memory
 		char *external_ref = strdup(
@@ -91,20 +106,19 @@ int similar_but_different_add_to_picinfo_list(FILE *sock_fh, PGconn *psql,
 
 		// Fast forward to the picinfo entry for this external_ref, or
 		// just after if there insn't a picinfo entry for this external_ref.
-		while (picinfo_list_ref
-				&& (strcmp(picinfo_list_ref->external_ref, external_ref) < 0)) {
-			picinfo_list_ref = picinfo_list_ref->next;
+		while (picinfo_list_ref_current
+				&& (strcmp(picinfo_list_ref_current->external_ref, external_ref) < 0)) {
+			picinfo_list_ref_current = picinfo_list_ref_current->next;
 		}
 
-		// Update the picinfo entry with the external_ref_other to avoid.
-		if (picinfo_list_ref
-				&& strcmp(picinfo_list_ref->external_ref, external_ref) == 0) {
-			rc = similar_but_different_add_to_picinfo(sock_fh, picinfo_list_ref,
-					external_ref_other);
-			external_ref_other = NULL; // picinfo_list_ref now owns this string.
+		// The external_ref_other is the ref of images that are not possible duplicates.
+		if (picinfo_list_ref_current
+				&& strcmp(picinfo_list_ref_current->external_ref, external_ref) == 0) {
+			rc = _picinfo_add_similar_but_different(sock_fh, picinfo_list_ref_current, external_ref_other);
+			external_ref_other = NULL; // picinfo_list_ref_current now owns this string.
 			if (rc) {
 				fprintf(sock_fh,
-						"ERROR: similar_but_different_add_to_picinfo_list failed call to similar_but_different_add_to_picinfo, error code=%d\n",
+						"ERROR: picinfo_list_refresh_similar_but_different failed call to _picinfo_add_similar_but_different, error code=%d\n",
 						rc);
 				return 2;
 			}
@@ -112,7 +126,7 @@ int similar_but_different_add_to_picinfo_list(FILE *sock_fh, PGconn *psql,
 		if (external_ref) { // should always be defined, but we check anyway.
 			free(external_ref);
 		}
-		if (external_ref_other) { // might be NULL if stored in picinfo_list_ref
+		if (external_ref_other) { // might be NULL if stored in picinfo_list_ref_current
 			free(external_ref_other);
 		}
 
@@ -128,13 +142,13 @@ int similar_but_different_add_to_picinfo_list(FILE *sock_fh, PGconn *psql,
  * prepend to external_ref_other to the chain of 'similar but different' external refs.
  */
 
-int similar_but_different_add_to_picinfo(FILE *sock_fh, PicInfo *picinfo,
+int _picinfo_add_similar_but_different(FILE *sock_fh, PicInfo *picinfo,
 		char *external_ref) {
 	Similar_but_different *new_sbd_link = (Similar_but_different *) malloc(
 			sizeof(Similar_but_different));
 	if (!new_sbd_link) {
 		fprintf(sock_fh,
-				"ERROR: similar_but_different_add_to_picinfo failed to malloc\n");
+				"ERROR: _picinfo_add_similar_but_different failed to malloc\n");
 		return 1;
 	}
 	new_sbd_link->external_ref = external_ref;
@@ -153,5 +167,17 @@ Similar_but_different *similar_but_different_search(
 		sbd_ptr = sbd_ptr->next;
 	}
 	return NULL;
+}
+
+void _picinfo_remove_all_similar_but_different(FILE *sock_fh, PicInfo *picinfo) {
+        Similar_but_different *sbd_link = picinfo->similar_but_different;
+        Similar_but_different *sbd_link_current = NULL;
+	while (sbd_link){
+		sbd_link_current = sbd_link;
+		sbd_link = sbd_link->next;
+		free(sbd_link_current->external_ref);
+		free(sbd_link_current);
+	}
+        picinfo->similar_but_different = NULL;
 }
 

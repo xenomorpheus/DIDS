@@ -7,7 +7,7 @@
  *
  * Please see the README file for further details.
  *
- *    Copyright (C) 2000-2015  Michael John Bruins, BSc.
+ *    Copyright (C) 2000-2019  Michael John Bruins, BSc.
  *
  *    This program is free software; you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
 
 #define CLIENT_MAX 100  // Note first two slots are for new incoming connections of IPv4 and IPv6.
 #define COMPARE_SIZE  16
-#define COMPARE_THRESHOLD 35000 // Lower means images must be more similar to match.
+#define COMPARE_THRESHOLD 70000 // Lower means images must be more similar to match.
 #define CPU_INFO_FILENAME  "/proc/cpuinfo"
 #define LOCK_FILE_TEMPLATE "/var/run/dids/lockfile_port_%d"
 #define BUFFER_SIZE 2048
@@ -109,7 +109,7 @@ int get_cpu_count(FILE *sock_fh) {
 int load(FILE *sock_fh, PGconn *psql, PicInfo **picinfo_list_ref) {
 	int rc = ppm_load_all_from_sql(sock_fh, psql, picinfo_list_ref);
 	if ((rc == 0) && (*picinfo_list_ref != NULL)) {
-		rc = similar_but_different_add_to_picinfo_list(sock_fh, psql,
+		rc = picinfo_list_refresh_similar_but_different(sock_fh, psql,
 				*picinfo_list_ref);
 	}
 	return rc;
@@ -291,13 +291,15 @@ void unload(PicInfo **list) {
  *   quit            : Stop listening for commands.
  *   add             : Learn a new image file by putting a new PPM into SQL and RAM.
  *   del             : Forget a PPM from both SQL and RAM.
- *   fullcompare     : Compare all PPMs in RAM and report potential duplicates.
  *   info            : Print statistics on e.g. how many PPMs in RAM, number of CPUs.
  *   load            : Load all PPM images from SQL into RAM.
  *   quickcompare    : Compare a single file to all PPMs in RAM and report potential duplicates.
+ *   fullcompare     : Compare all PPMs in RAM and report potential duplicates.
+ *   refresh_similar_but_different : Refresh details that help avoid false matches.
  *   unload          : Free all PPM images from RAM.
  *   debug_sleep     : fork() then sleep for 60 seconds. Used to test fork()
  *   debug_show_tree : Show the memory structure of the PPM tree. Used to check structure.
+ *   help            : Show this message.
  *
  *  Will fork() for longer running operations such as fullcompare and quickcompare.
  *
@@ -496,6 +498,22 @@ void command_process(int new_sockfd, char *cmd_buffer,
 			fprintf(new_sockfh, "INFO FAILED, code %d\n", rc);
 		} else {
 			fprintf(new_sockfh, "INFO SUCCESS\n");
+		}
+	}
+
+	// refresh_similar_but_different
+	else if (strstr(cmd_buffer, "refresh_similar_but_different") == cmd_buffer) {
+		fprintf(new_sockfh, "REFRESH_SIMILAR_BUT_DIFFERENT\n");
+		int rc = 0;
+		if (*picinfo_list_ptr) {
+			rc = picinfo_list_refresh_similar_but_different(new_sockfh, psql, *picinfo_list_ptr);
+
+		}
+		if (rc){
+			fprintf(new_sockfh, "REFRESH_SIMILAR_BUT_DIFFERENT FAILED, code %d\n", rc);
+		}
+		else{
+			fprintf(new_sockfh, "REFRESH_SIMILAR_BUT_DIFFERENT SUCCESS\n");
 		}
 	}
 

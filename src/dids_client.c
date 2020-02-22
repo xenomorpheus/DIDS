@@ -3,7 +3,7 @@
  * It communication with server by TCP/IP.
  * Please see the README file for further details.
  *
- *    Copyright (C) 2000-2015  Michael John Bruins, BSc.
+ *    Copyright (C) 2000-2019  Michael John Bruins, BSc.
  *
  *    This program is free software; you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -41,17 +41,18 @@ void help(char *argv[]) {
 	fprintf(stderr, "usage %s --hostname localhost --port 10000 COMMAND ARGS \n", argv[0]);
 	fprintf(stderr, "\n");
 	fprintf(stderr, "COMMAND and ARGS:\n");
-	fprintf(stderr, "     load - load all image info from memory\n");
-	fprintf(stderr, "     fullcompare\n");
-	fprintf(stderr, "     add external_ref_1 filename_1 \n");
-	fprintf(stderr, "     del external_ref_1 \n");
-	fprintf(stderr, "     quickcompare filename\n");
-	fprintf(stderr, "     unload - unload all ppm info from memory\n");
-	fprintf(stderr, "     info   - server info\n");
-	fprintf(stderr, "     debug_show_tree - show server image structure\n");
-	fprintf(stderr, "     debug_sleep - sleep for a while to test launch of sub-process\n");
-	fprintf(stderr, "     quit   - server quit\n");
-	fprintf(stderr, "     help   - this message\n");
+	fprintf(stderr, "     quit            : Stop listening for commands.\n");
+	fprintf(stderr, "     add             : Learn a new image file by putting a new PPM into SQL and RAM.\n");
+	fprintf(stderr, "     del             : Forget a PPM from both SQL and RAM.\n");
+	fprintf(stderr, "     info            : Print statistics on e.g. how many PPMs in RAM, number of CPUs.\n");
+	fprintf(stderr, "     load            : Load all PPM images from SQL into RAM.\n");
+	fprintf(stderr, "     quickcompare    : Compare a single file to all PPMs in RAM and report potential duplicates.\n");
+	fprintf(stderr, "     fullcompare     : Compare all PPMs in RAM and report potential duplicates.\n");
+	fprintf(stderr, "     refresh_similar_but_different : Refresh details that help avoid false matches.\n");
+	fprintf(stderr, "     unload          : Free all PPM images from RAM.\n");
+	fprintf(stderr, "     debug_sleep     : fork() then sleep for 60 seconds. Used to test fork()\n");
+	fprintf(stderr, "     debug_show_tree : Show the memory structure of the PPM tree. Used to check structure.\n");
+	fprintf(stderr, "     help            : Show this message\n");
 	fprintf(stderr, "\n");
 }
 

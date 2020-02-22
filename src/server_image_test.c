@@ -12,7 +12,7 @@
  * 1) to add the miniature image into the SQL.
  *
  *
- *    Copyright (C) 2000-2015  Michael John Bruins, BSc.
+ *    Copyright (C) 2000-2019  Michael John Bruins, BSc.
  *
  *    This program is free software; you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by

@@ -3,7 +3,7 @@
  * This module provides types and subroutine header definitions.
  * Please see the README file for further details.
  *
- *    Copyright (C) 2000-2015  Michael John Bruins, BSc.
+ *    Copyright (C) 2000-2019  Michael John Bruins, BSc.
  *
  *    This program is free software; you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -118,7 +118,6 @@ void PicInfoAddToList(PicInfo **list_ref, PicInfo *hlp);
 int PicInfoDeleteFromList(PicInfo **list_ref, char *external_ref);
 
 // similar_but_different_dao.c
-int similar_but_different_add_to_picinfo_list(FILE *sock_fh, PGconn *psql, PicInfo *picinfo_list_ref);
-int similar_but_different_add_to_picinfo(FILE *sock_fh, PicInfo *picinfo, char *external_ref);
+int picinfo_list_refresh_similar_but_different(FILE *sock_fh, PGconn *psql, PicInfo *picinfo_list_ref);
 Similar_but_different *similar_but_different_search(Similar_but_different *sbd_ptr,char *external_ref);
 
