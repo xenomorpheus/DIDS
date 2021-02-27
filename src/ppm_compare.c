@@ -217,11 +217,14 @@ int fullcompare(FILE *sock_fh, PicInfo *full_list, unsigned int maxerr,
 }
 
 /*
- *   comparing an image to the list
+ *   compare an image to the list
  *
  *   return
  *       closest ppm that is below maxerr
  *       otherwise NULL.
+ *
+ *   side effects
+ *       report images under maxerr. Used by fuzzy duplicate processing.
  */
 PicInfo *CompareToList(FILE *sock_fh, PicInfo *pic, PicInfo *picinfo_list,
 		unsigned int maxerr) {
@@ -251,40 +254,38 @@ PicInfo *CompareToList(FILE *sock_fh, PicInfo *pic, PicInfo *picinfo_list,
 	unsigned int err_best_so_far = UINT_MAX;
 	PicInfo *best_match = NULL;
 
+	// Even when we can't find a better match we keep processing because we want
+	// to supply a list of close matches to fuzzy duplicate processing.
 	while (picinfo_list) {
-
-		/*
-		 *   As we want DIDS to report the next closest match, DIDS needs to
-		 *   ignore 'similar_but_different' cases at the point it decides if
-		 *   to compare two images. Waiting until later and weeding out the
-		 *   results won't work as the next closest image won't be reported.
-		 */
-		if (similar_but_different_search(pic->similar_but_different, picinfo_list->external_ref)) {
-			picinfo_list = picinfo_list->next;
-			continue;
-		}
 
 		err_this_compare = PPM_compare(sock_fh, pic->picinf,
 				picinfo_list->picinf, err_best_so_far);
 
 		// If this compare is closer than maxerr AND better than any previous comparisons.
-		if ((err_this_compare < maxerr)
-				&& (err_this_compare < err_best_so_far)) {
-			err_best_so_far = err_this_compare;
-			best_match = picinfo_list;
+		if (err_this_compare < maxerr){
 
-			// We won't get any closer than an exact match.
-			if (err_this_compare == 0) {
-				break;
+			/*
+			*   As we want DIDS to report the next closest match, DIDS needs to
+			*   ignore 'similar_but_different' cases at the point it decides if
+			*   to compare two images. Waiting until later and weeding out the
+			*   results won't work as the next closest image won't be reported.
+			*/
+			if (similar_but_different_search(pic->similar_but_different, picinfo_list->external_ref)) {
+				picinfo_list = picinfo_list->next;
+				continue;
 			}
+
+			fprintf(sock_fh, "Match: %s, %s, %u\n", external_ref,
+					best_match->external_ref, err_best_so_far);
+			fflush(sock_fh);
+
+			if (err_this_compare < err_best_so_far) {
+				err_best_so_far = err_this_compare;
+				best_match = picinfo_list;
+			}
+
 		}
 		picinfo_list = picinfo_list->next;
-	}
-	// report best_match
-	if (best_match) {
-		fprintf(sock_fh, "Match: %s, %s, %u\n", external_ref,
-				best_match->external_ref, err_best_so_far);
-		fflush(sock_fh);
 	}
 	return best_match;
 }
