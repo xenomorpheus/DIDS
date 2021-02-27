@@ -4,7 +4,7 @@
  * This module uses multi-threaded code.
  * Please see the README file for further details.
  *
- *    Copyright (C) 2000-2019  Michael John Bruins, BSc.
+ *    Copyright (C) 2000-2021  Michael John Bruins, BSc.
  *
  *    This program is free software; you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
