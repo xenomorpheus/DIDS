@@ -3,7 +3,7 @@
  * This module provides connectivity to an SQL database.
  * Please see the README file for further details.
  *
- *    Copyright (C) 2000-2021  Michael John Bruins, BSc.
+ *    Copyright (C) 2000-2022  Michael John Bruins, BSc.
  *
  *    This program is free software; you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -36,18 +36,18 @@
 
 PGconn *ppm_sql_connect(FILE *sock_fh, char *sql_info) {
 
-	// Connect to SQL database
-	PGconn *psql = PQconnectdb(sql_info);
-	if (!psql) {
-		fprintf(sock_fh, "libpq error: PQconnectdb returned NULL.\nSQL: %s\n",
-				sql_info);
-		return NULL;
-	}
-	if (PQstatus(psql) != CONNECTION_OK) {
-		fprintf(sock_fh, "libpq error: %s", PQerrorMessage(psql));
-		return NULL;
-	}
-	return psql;
+    // Connect to SQL database
+    PGconn *psql = PQconnectdb(sql_info);
+    if (!psql) {
+        fprintf(sock_fh, "libpq error: PQconnectdb returned NULL.\nSQL: %s\n",
+                sql_info);
+        return NULL;
+    }
+    if (PQstatus(psql) != CONNECTION_OK) {
+        fprintf(sock_fh, "libpq error: %s", PQerrorMessage(psql));
+        return NULL;
+    }
+    return psql;
 }
 
 /*
@@ -56,7 +56,7 @@ PGconn *ppm_sql_connect(FILE *sock_fh, char *sql_info) {
  */
 
 void ppm_sql_disconnect(FILE *sock_fh, PGconn *psql) {
-	PQfinish(psql);
+    PQfinish(psql);
 
 }
 
@@ -68,16 +68,16 @@ void ppm_sql_disconnect(FILE *sock_fh, PGconn *psql) {
 
 PGresult *
 pq_query(PGconn *psql, const char *format, ...) {
-	va_list argv;
-	char *ptrQuery;
-	PGresult *result;
-	va_start(argv, format);
-	vasprintf(&ptrQuery, format, argv);
-	va_end(argv);
-	if (!ptrQuery)
-		return (0);
-	result = PQexec(psql, ptrQuery);
-	free(ptrQuery);
-	return (result);
+    va_list argv;
+    char *ptrQuery;
+    PGresult *result;
+    va_start(argv, format);
+    vasprintf(&ptrQuery, format, argv);
+    va_end(argv);
+    if (!ptrQuery)
+        return (0);
+    result = PQexec(psql, ptrQuery);
+    free(ptrQuery);
+    return (result);
 }
 
