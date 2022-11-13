@@ -31,7 +31,7 @@
 #include <string.h>
 
 // Custom
-#include "ppm.h"
+#include "dids.h"
 
 void show_list( PicInfo *list){
   printf("List is\n");

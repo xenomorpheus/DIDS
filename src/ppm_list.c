@@ -24,7 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "ppm.h"
+#include "dids.h"
 
 /*
  * build a PicInfo object and assign the properties.

@@ -26,7 +26,7 @@
 #include <string.h>
 #include <libpq-fe.h>
 #include <stdarg.h>
-#include "ppm.h"
+#include "dids.h"
 
 /* forward declarations */
 int _picinfo_add_similar_but_different(FILE *sock_fh, PicInfo *picinfo, char *external_ref);

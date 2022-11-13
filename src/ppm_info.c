@@ -21,7 +21,7 @@
  *
  */
 #include <stdlib.h>
-#include "ppm.h"
+#include "dids.h"
 
 /*
  * reserve memory for a PPM_Info object

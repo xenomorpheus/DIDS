@@ -25,7 +25,7 @@
 #include <string.h>
 #include <libpq-fe.h>
 #include <stdarg.h>
-#include "ppm.h"
+#include "dids.h"
 
 /*
 

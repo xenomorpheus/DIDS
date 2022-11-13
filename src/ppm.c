@@ -32,7 +32,7 @@
 #include <stdint.h>
 #include <wand/MagickWand.h>
 
-#include "ppm.h"
+#include "dids.h"
 
 void PPM_SetPixel(PPM_Info *ppm, int x, int y, Color c) {
 	if ((x < 0) || (x >= ppm->width)) {

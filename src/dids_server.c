@@ -58,7 +58,7 @@
 #include <wand/MagickWand.h>
 
 // Custom
-#include "ppm.h"
+#include "dids.h"
 
 // Each connection to the server will have some details.
 typedef struct Client_Info {

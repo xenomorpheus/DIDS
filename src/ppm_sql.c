@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include <libpq-fe.h>
 #include <stdarg.h>
-#include "ppm.h"
+#include "dids.h"
 
 /*
  * ppm_sql_connect
