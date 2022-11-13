@@ -7,11 +7,7 @@ been brought together, but there may be some (ahem) duplicate information.
 
 Welcome to DIDS.
 
-TL;DR
-DIDS is used to find possible duplicates in images.
-
-
-More details...
+As its name suggests, this software is used to find possible duplicates in images.
 
 DIDS is multi-threaded, forking and has several optimisation techniques built in.
 DIDS listens for up to a 100 client connections over the network, either IPv4 or IPv6.
