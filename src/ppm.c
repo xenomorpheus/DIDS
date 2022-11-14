@@ -121,12 +121,12 @@ unsigned int PPM_compare(FILE *sock_fh, PPM_Info *p1, PPM_Info *p2,
     int x;
     int y;
     Color c1, c2;
-    unsigned int error = 0;
+    unsigned int diff = 0;
 
     if ((p1->width != p2->width) || (p1->height != p2->height)) {
-        fprintf(sock_fh,
-                "Compare pictures not identical in size, internal error\n");
-        fprintf(sock_fh, "p1 w %d, p2 w %d, p1 h %d, p2 h %d\n", p1->width,
+        error(sock_fh,
+                "PPM_compare: Compare pictures not identical in size, internal error\n");
+        error(sock_fh, "PPM_compare: p1 w %d, p2 w %d, p1 h %d, p2 h %d\n", p1->width,
                 p2->width, p1->height, p2->height);
         return (-1);
     }
@@ -137,33 +137,28 @@ unsigned int PPM_compare(FILE *sock_fh, PPM_Info *p1, PPM_Info *p2,
             PPM_GetPixel(p2, x, y, &c2);
 
             /*
-             * Calculate diff into error
+             * Calculate diff
              */
-            error += ((c1.r - c2.r) * (c1.r - c2.r));
-            error += ((c1.g - c2.g) * (c1.g - c2.g));
-            error += ((c1.b - c2.b) * (c1.b - c2.b));
+            diff += ((c1.r - c2.r) * (c1.r - c2.r));
+            diff += ((c1.g - c2.g) * (c1.g - c2.g));
+            diff += ((c1.b - c2.b) * (c1.b - c2.b));
         }
         // Each row we check if the error factor exceeds our best PPM match so far.
         // If so there is no point in continuing.
-        if (error > err_best_so_far){
+        if (diff > err_best_so_far){
             return UINT_MAX;
         }
     }
 
-    return error;
+    return diff;
 }
 
 void ReportWandException(MagickWand *wand, FILE *sock_fh) {
     ExceptionType severity;
     char *description = MagickGetException(wand, &severity);
-    (void) fprintf(sock_fh, "ERROR: %s %s %lu %s\n", GetMagickModule(),
+    (void) error(sock_fh, "ReportWandException: %s %s %lu %s\n", GetMagickModule(),
             description);
     description = (char *) MagickRelinquishMemory(description);
-}
-
-void ThrowWandException(MagickWand *wand, FILE *sock_fh) {
-    ReportWandException(wand, sock_fh);
-    exit(-1);
 }
 
 /*
@@ -187,8 +182,8 @@ PPM_Info *ppm_miniature_from_filename(FILE *sock_fh, char *filename,
      Read an image.
      */
 
-    MagickBooleanType status = MagickReadImage(magick_wand, filename);
-    if (status == MagickFalse) {
+    if (MagickReadImage(magick_wand, filename) == MagickFalse) {
+        error(sock_fh, "ppm_miniature_from_filename: MagickReadImage failed for filename: %s", filename);
         ReportWandException(magick_wand, sock_fh);
         magick_wand = DestroyMagickWand(magick_wand);
         return NULL;
@@ -199,8 +194,8 @@ PPM_Info *ppm_miniature_from_filename(FILE *sock_fh, char *filename,
 
     // Too small
     if ((width < new_size) || (height < new_size)) {
-        fprintf(sock_fh,
-                "ERROR: ppm_miniature_from_filename Failed on filename %s because size (%dx%d) below compare size\n",
+        error(sock_fh,
+                "ppm_miniature_from_filename: Failed on filename %s because size (%dx%d) below compare size\n",
                 filename, width, height);
         magick_wand = DestroyMagickWand(magick_wand);
         return NULL;
@@ -223,8 +218,8 @@ PPM_Info *ppm_miniature_from_filename(FILE *sock_fh, char *filename,
 
     ppm = ppm_info_allocate(width, height);
     if (ppm == NULL) {
-        fprintf(sock_fh,
-                "ERROR: ppm_miniature_from_filename Failed to allocate memory for image from filename %s\n",
+        error(sock_fh,
+                "ppm_miniature_from_filename: Failed to allocate memory for image from filename %s\n",
                 filename);
         magick_wand = DestroyMagickWand(magick_wand);
         return NULL;
@@ -233,12 +228,12 @@ PPM_Info *ppm_miniature_from_filename(FILE *sock_fh, char *filename,
     ppm->width = width;
     ppm->height = height;
     ppm->modval = 3 * ppm->width;
-    status = MagickExportImagePixels(magick_wand, 0, 0, width, height, "RGB",
-            CharPixel, ppm->data);
 
-    if (status == MagickFalse) {
-        fprintf(sock_fh,
-                "ERROR: ppm_miniature_from_filename Failed. Error from MagickExportImagePixels follows:\n");
+
+    if (MagickExportImagePixels(magick_wand, 0, 0, width, height, "RGB",
+            CharPixel, ppm->data) == MagickFalse) {
+        error(sock_fh,
+                "ppm_miniature_from_filename: Failed. Error from MagickExportImagePixels follows:\n");
         ReportWandException(magick_wand, sock_fh);
         magick_wand = DestroyMagickWand(magick_wand);
         free(ppm);

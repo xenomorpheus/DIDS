@@ -49,7 +49,7 @@
 #include <wand/MagickWand.h>
 
 // Custom
-#include "dids.h"
+#include "../src/dids.h"
 
 void usage(FILE *sock_fh, char *appname) {
     fprintf(sock_fh, "\n");
