@@ -273,7 +273,7 @@ PicInfo *CompareToList(FILE *sock_fh, PicInfo *pic, PicInfo *picinfo_list, unsig
             */
             Similar_but_different *sbd = similar_but_different_search(pic->similar_but_different, picinfo_list->external_ref);
             if (sbd) {
-                debug(sock_fh, "ignoring previous similar_but_different: %s, %s", sbd->external_ref, picinfo_list->external_ref);
+                debug(sock_fh, "ignoring previous similar_but_different: %s, %s", external_ref, sbd->external_ref);
                 fflush(sock_fh);
                 picinfo_list = picinfo_list->next;
                 continue;
